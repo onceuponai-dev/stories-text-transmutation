@@ -19,12 +19,6 @@ impl Model {
         console_log!("loading model");
 
         let device = &Device::Cpu;
-        let ll = weights
-            .iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>();
-
-        console_log!("{}", &ll.join("-"));
 
         let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device).unwrap();
 
@@ -61,9 +55,7 @@ impl Model {
         let token_type_ids = token_ids.zeros_like()?;
         console_log!("Loaded and encoded");
 
-        let start = std::time::Instant::now();
         let embeddings = self.model.forward(&token_ids, &token_type_ids)?;
-        console_log!("Took {:?}", start.elapsed());
 
         let embeddings_data = embeddings.to_vec2()?;
         Ok(serde_wasm_bindgen::to_value(&Embeddings {

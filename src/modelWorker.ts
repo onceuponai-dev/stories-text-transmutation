@@ -3,7 +3,7 @@ import init, { Model } from "./build/m.js";
 
 function getModelData(modelID: string) {
   let base_url = `https://huggingface.co/${modelID}/resolve/main`;
-  let weightsURL = `${base_url}/model.safetensor`;
+  let weightsURL = `${base_url}/model.safetensors`;
   let tokenizerURL = `${base_url}/tokenizer.json`;
   let configURL = `${base_url}/config.json`;
 

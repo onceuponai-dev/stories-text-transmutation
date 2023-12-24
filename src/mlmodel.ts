@@ -21,7 +21,8 @@ export const forward = (() => {
     return new Promise((onSuccess) => {
       callbacks[id] = onSuccess;
 
-      const modelID = "jinaai/jina-embeddings-v2-small-en";
+      //const modelID = "jinaai/jina-embeddings-v2-small-en";
+      const modelID ="intfloat/e5-small-v2"
       modelWorker.postMessage({
         modelID,
         sentences,
