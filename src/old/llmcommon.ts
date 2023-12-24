@@ -2,7 +2,6 @@
 import appConfig from "@/app-config";
 import { ChatModule, type AppConfig, type InitProgressReport, type ModelRecord, ChatWorkerClient } from '@mlc-ai/web-llm';
 import { parseMarkdown, highlight } from '@/mdcommon';
-import { VCardItem } from "vuetify/components";
 
 export default class Assistant {
     llmConfig!: AppConfig;

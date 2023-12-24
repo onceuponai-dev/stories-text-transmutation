@@ -24,7 +24,7 @@ macro_rules! console_log {
 
 #[wasm_bindgen]
 pub async fn greet() -> Result<JsValue, JsValue> {
-    let mut url = "http://localhost:8000/data/a147z230801.xml";
+    let url = "http://localhost:8000/data/a147z230801.xml";
     //url = "https://static.nbp.pl/dane/kursy/xml/a147z230801.xml";
 
     let res = reqwest::get(url).await.unwrap().text().await.unwrap();

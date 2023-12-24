@@ -1,11 +1,8 @@
 use candle::{DType, Device, Module, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::{
-    jina_bert::{BertModel, Config},
-    stable_diffusion::embeddings,
-};
-use hello_wasm::console_log;
-use tokenizers::{PaddingParams, Tokenizer};
+use candle_transformers::models::bert::{BertModel, Config};
+use tokenizers::Tokenizer;
+use transmutation_rs::console_log;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -20,22 +17,33 @@ impl Model {
     pub fn load(weights: Vec<u8>, tokenizer: Vec<u8>, config: Vec<u8>) -> Result<Model, JsError> {
         console_error_panic_hook::set_once();
         console_log!("loading model");
+
         let device = &Device::Cpu;
-        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device)?;
+        let ll = weights
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
+
+        console_log!("{}", &ll.join("-"));
+
+        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device).unwrap();
+
+        console_log!("loading model1");
         let config: Config = serde_json::from_slice(&config)?;
         let tokenizer =
             Tokenizer::from_bytes(&tokenizer).map_err(|m| JsError::new(&m.to_string()))?;
-        let model = BertModel::new(vb, &config)?;
+
+        let model = BertModel::load(vb, &config)?;
 
         Ok(Self { model, tokenizer })
     }
 
-    pub fn get_embeddings(&mut self, input: JsValue) -> Result<JsValue, JsError> {
+    pub fn forward(&mut self, input: JsValue) -> Result<JsValue, JsError> {
         let input: Params =
             serde_wasm_bindgen::from_value(input).map_err(|m| JsError::new(&m.to_string()))?;
         let sentences = input.sentences;
 
-        let prompt = "test".to_string();
+        let prompt = sentences.last().unwrap().to_string();
         let device = &Device::Cpu;
         let tokenizer = self
             .tokenizer
@@ -50,11 +58,11 @@ impl Model {
             .to_vec();
 
         let token_ids = Tensor::new(&tokens[..], device)?.unsqueeze(0)?;
-
+        let token_type_ids = token_ids.zeros_like()?;
         console_log!("Loaded and encoded");
 
         let start = std::time::Instant::now();
-        let embeddings = self.model.forward(&token_ids)?;
+        let embeddings = self.model.forward(&token_ids, &token_type_ids)?;
         console_log!("Took {:?}", start.elapsed());
 
         let embeddings_data = embeddings.to_vec2()?;

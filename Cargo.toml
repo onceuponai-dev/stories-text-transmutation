@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "rust",
+    "transmutation-rs",
 ]
 
 [workspace.package]

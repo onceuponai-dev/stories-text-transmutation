@@ -1,16 +1,12 @@
 <script lang="ts">
-import axios from 'axios';
-import Notebook from '@/nbcommon';
-import Thumbellama from './components/Thumbellama.vue'
+import Transmutation from './components/Transmutation.vue'
 import { defineComponent, ref, onMounted, onUpdated } from 'vue';
-import { parseMarkdown, highlight } from '@/mdcommon';
 import { getCookie, parseBool, setCookie } from './common';
-import { asyncRun, formatCode, init_code } from '@/pycommon';
 
 export default defineComponent({
   name: 'App',
   components: {
-    Thumbellama
+    Transmutation
   },
   setup(props, { emit }) {
 
@@ -30,7 +26,6 @@ export default defineComponent({
     return {
       cookieConsentBanner,
       acceptCookie,
-      parseMarkdown,
     };
   }
 });
@@ -53,7 +48,7 @@ export default defineComponent({
     <br />
     <v-row justify="center">
       <v-col cols="12" sm="10">
-        <Thumbellama></Thumbellama>
+        <Transmutation></Transmutation>
       </v-col>
     </v-row>
   </v-container>
