@@ -1,26 +1,23 @@
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUpdated } from 'vue';
-import { forward } from '@/mlmodel';
-import { PCA } from 'ml-pca';
+import { forward, cosineSimilarity } from '@/mlmodel';
 
+type Embedding = any[]
 // @ts-ignore
 import * as Papa from 'papaparse';
-
-// @ts-ignore
-import * as d3 from 'd3';
-
 
 export default defineComponent({
   name: 'Transmutation',
   setup() {
 
+    const loading: any = ref(false);
+    const loaded: any = ref(false);
+    const showDialog: any = ref(false);
+    const dialogSentence: any = ref(null);
     const sentence: any = ref(null);
     const sentences: any = ref([]);
-    const embeddings: any = ref({});
-    const embarr: any = ref([]);
-    const csvData: any = ref(null);
-
-    sentence.value = "The quick brown fox jumps over the lazy dog";
+    const mostSimilarId: any = ref(null);
+    sentence.value = "Potion of Liquid Starlight";
 
     function transformToColumns(data: any[]): Record<string, string[]> {
       const columns: Record<string, string[]> = {};
@@ -39,11 +36,15 @@ export default defineComponent({
       return columns;
     }
 
-    const parseCSV = (file: any) => {
+    function parseCSV(file: any) {
       Papa.parse(file, {
-        complete: (results: any) => {
+        complete: async (results: any) => {
+          loading.value = true;
           let csvData = transformToColumns(results.data)[0];
-          getEmbeddings(csvData);
+          let embeddings = await getEmbeddings(csvData);
+          sentences.value = csvData.map((v: string, i: number) => { return { text: v, similarity: 0, embedding: embeddings[i] }; });
+          loading.value = false;
+          loaded.value = true;
           //this.csvHeaders = results.meta.fields;
         },
         header: false,
@@ -75,51 +76,36 @@ export default defineComponent({
       }
     };
 
-    const calculatePCA = (embeddings: any) => {
-      let pca = new PCA(embeddings);
-      return pca.predict(embeddings, { nComponents: 2 });
+    async function getEmbeddings(sentences: any): Promise<Embedding[]> {
+      let result: any = await forward(sentences);
+      return result.results;
     }
 
-    const drawEmbeddings = (reducedData: any) => {
-      const svg = d3.select('#svgContainer').append('svg')
-        .attr('width', 800)
-        .attr('height', 600);
 
-      const xScale = d3.scaleLinear()
-        .domain([d3.min(reducedData, (d: any[]) => d[0]), d3.max(reducedData, (d: any[]) => d[0])])
-        .range([0, 800]);
-
-      const yScale = d3.scaleLinear()
-        .domain([d3.min(reducedData, (d: any[]) => d[1]), d3.max(reducedData, (d: any[]) => d[1])])
-        .range([600, 0]);
-
-      svg.selectAll('.dot')
-        .data(reducedData)
-        .enter().append('circle')
-        .attr('class', 'dot')
-        .attr('cx', (d: any[]) => xScale(d[0]))
-        .attr('cy', (d: any[]) => yScale(d[1]))
-        .attr('r', 5);
-
+    function showEmbeddings(sentence: any) {
+      dialogSentence.value = sentence;
+      showDialog.value = true
     }
 
-    const getEmbeddings = (sentences: any) => {
-      console.log(sentences);
-      forward(sentences).then((result: any) => {
-        let emb = result.results
-        let reducedData = calculatePCA(emb);
-        console.log(reducedData);
-        drawEmbeddings(reducedData);
-      }).catch(err => {
-        console.log(err);
-      });;
-    }
+    async function search(sentence: string) {
+      console.log("search" + sentence);
+      let searchEmbedding = (await getEmbeddings([sentence]))[0];
+      let highestSimilarity = -1;
+      let mostSimilarSentence: string = "";
 
-    const addSentence = () => {
-      console.log("addSentence " + sentence.value);
-      sentences.value.push(sentence.value);
-      getEmbeddings(sentence.value);
-      sentence.value = "";
+      sentences.value.forEach((sentence: any, index: number) => {
+        const similarity = cosineSimilarity(searchEmbedding, sentence.embedding);
+        sentence.similarity = similarity;
+        if (similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          mostSimilarSentence = sentence.text;
+        }
+      });
+
+      sentences.value = sentences.value.sort((a: any, b: any) => b.similarity - a.similarity);
+
+      console.log(mostSimilarSentence);
+
     };
 
     onMounted(() => {
@@ -130,12 +116,16 @@ export default defineComponent({
     });
 
     return {
-      embeddings,
       sentences,
       sentence,
-      addSentence,
+      search,
       onDrop,
-      exampleCsv
+      exampleCsv,
+      loading,
+      loaded,
+      showEmbeddings,
+      showDialog,
+      dialogSentence
     };
   }
 });
@@ -148,46 +138,89 @@ export default defineComponent({
       <v-row justify="center">
         <v-col cols="12" sm="12" md="12">
           <v-card class="pa-2" outlined tile @drop.prevent="onDrop" @dragover.prevent @dragenter.prevent>
-            <v-card-text class="text-center">Drag and drop a CSV file here</v-card-text>
+            <v-card-text class="text-center">Drag and drop a file here (sentence per line)</v-card-text>
           </v-card>
         </v-col>
-        <v-col cols="auto">
-          <v-btn size="large" @click="exampleCsv">Read example file</v-btn>
+
+        <v-col cols="12" sm="12" md="12" align="center">
+          OR
         </v-col>
+
+
+        <v-col cols="12" sm="12" md="12" align="center">
+          <v-btn size="large" @click="exampleCsv">Read example recipes</v-btn>
+        </v-col>
+
+
+
       </v-row>
-      <!--
-    <v-row align="center" no-gutters v-for="sentence in sentences">
-        <br />
+      <br />
+
+
+      <v-divider></v-divider>
+      <br />
+      <v-row align="center" v-if="loading">
+        <v-col cols="12" sm="12" md="12">
+          <v-progress-linear color="deep-purple-accent-4" striped indeterminate rounded height="10">
+          </v-progress-linear>
+        </v-col>
+
+      </v-row>
+      <v-row align="center" no-gutters v-if="loaded">
         <v-col cols="1" sm="1" align="end" />
         <v-col cols="10" sm="10">
-          <pre class="pre-container" v-html="sentence" />
+          <v-text-field v-model="sentence" color="green" density="compact" variant="solo" append-inner-icon="mdi-magnify"
+            single-line hide-details @click:append-inner="search(sentence)"
+            v-on:keydown.enter.capture.prevent.stop="search(sentence)"></v-text-field>
         </v-col>
-      </v-row>
-
-      <v-row align="center" no-gutters>
-
-        <v-col cols="1" sm="1" align="end" />
-        <v-col cols="10" sm="10">
-          <v-text-field ref="editor" v-model="sentence" color="green" density="compact" variant="solo"
-            append-inner-icon="mdi-plus" single-line hide-details @click:append-inner="addSentence()"
-            v-on:keydown.enter.capture.prevent.stop="addSentence()"></v-text-field>
-        </v-col>
-      
-
         <br />
       </v-row>
-    -->
+      <br />
+      <v-divider></v-divider>
 
-
-      <v-row>
-        <v-col cols="10" sm="10">
-          <div id="svgContainer"></div>
-        </v-col>
-      </v-row>
-
+      <v-table v-if="loaded">
+        <thead>
+          <tr>
+            <th class="text-left">
+              Sentence
+            </th>
+            <th class="text-left">
+              Similarity
+            </th>
+            <th class="text-left">
+              Embeddings
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="sentence in sentences" align="left">
+            <td>{{ sentence.text }}</td>
+            <td>{{ sentence.similarity }}</td>
+            <td>
+              <v-btn @click="showEmbeddings(sentence)">Show</v-btn>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
 
     </v-container>
   </v-card>
+
+  <v-dialog width="auto" v-model="showDialog">
+    <v-toolbar dark color="primary">
+      <v-btn icon dark @click="showDialog = false">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+      <v-toolbar-title>{{ dialogSentence.text }}</v-toolbar-title>
+      <v-spacer></v-spacer>
+    </v-toolbar>
+    <v-card>
+      <v-card-text>
+        {{ dialogSentence.embedding }}
+      </v-card-text>
+
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
@@ -198,7 +231,6 @@ export default defineComponent({
 .pre-container {
   padding: 15px 16px;
   border-color: -internal-light-dark(rgb(118, 118, 118), rgb(133, 133, 133));
-  background-color: #f5f5f5;
   font-family: monospace, monospace;
   margin-bottom: 22px;
 }
@@ -217,9 +249,15 @@ export default defineComponent({
 }
 
 .pa-2 {
-  height: 200px;
+  height: 100px;
   background-color: #f5f5f5;
 }
+
+.main-title {
+  font-family: 'Fontdiner Swanky' !important;
+  line-height: 1.5;
+}
+
 
 #editor {
   /* width: 40dvw; */

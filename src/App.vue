@@ -42,7 +42,7 @@ export default defineComponent({
     <v-row justify="center">
 
       <v-col cols="12" sm="12">
-        <img src="/images/thumbellama55.png" width="200" class="center-image" />
+        <img src="/images/text-transmutation.png" width="270" class="center-image" />
       </v-col>
     </v-row>
     <br />
