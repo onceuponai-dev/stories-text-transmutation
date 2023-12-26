@@ -52,7 +52,7 @@ export default defineComponent({
     };
 
     function exampleCsv() {
-      let url = "/data/example.csv";
+      let url = "/data/example.txt";
       fetch(url)
         .then(response => {
           if (!response.ok) {
