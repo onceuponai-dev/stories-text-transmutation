@@ -11,13 +11,6 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.8",
-    "@types/highlight.js": "^10.1.0",
-    "@types/marked": "^5.0.1",
-    "axios": "^1.6.0",
-    "highlight.js": "^11.8.0",
-    "marked": "^7.0.2",
-    "marked-highlight": "^2.0.4",
     "papaparse": "^5.4.1",
     "vue": "^3.3.4",
     "vuetify": "^3.3.12"
