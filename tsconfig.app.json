@@ -9,9 +9,8 @@
     "src/**/__tests__/*"
   ],
   "compilerOptions": {
-
     "lib": [
-      "ES6",
+      "ES2017",
       "DOM",
       "WebWorker"
     ],

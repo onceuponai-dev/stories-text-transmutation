@@ -36,7 +36,7 @@ export default defineComponent({
     <br />
     <v-row justify="center">
       <v-col cols="12" sm="12">
-        <div class="text-h4 text-center font-weight-bold main-title" v-html="'Thumbellama'"></div>
+        <div class="text-h4 text-center font-weight-bold main-title" v-html="'Text Transmutation'"></div>
       </v-col>
     </v-row>
     <v-row justify="center">

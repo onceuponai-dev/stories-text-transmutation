@@ -1,7 +1,7 @@
 use candle::{DType, Device, Module, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config};
-use tokenizers::Tokenizer;
+use tokenizers::{PaddingParams, Tokenizer};
 use transmutation_rs::console_log;
 use wasm_bindgen::prelude::*;
 
@@ -20,9 +20,8 @@ impl Model {
 
         let device = &Device::Cpu;
 
-        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device).unwrap();
+        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F64, device)?;
 
-        console_log!("loading model1");
         let config: Config = serde_json::from_slice(&config)?;
         let tokenizer =
             Tokenizer::from_bytes(&tokenizer).map_err(|m| JsError::new(&m.to_string()))?;
@@ -36,27 +35,46 @@ impl Model {
         let input: Params =
             serde_wasm_bindgen::from_value(input).map_err(|m| JsError::new(&m.to_string()))?;
         let sentences = input.sentences;
-
-        let prompt = sentences.last().unwrap().to_string();
+        let normalize_embeddings = input.normalize_embeddings;
         let device = &Device::Cpu;
-        let tokenizer = self
+
+        if let Some(pp) = self.tokenizer.get_padding_mut() {
+            pp.strategy = tokenizers::PaddingStrategy::BatchLongest
+        } else {
+            let pp = PaddingParams {
+                strategy: tokenizers::PaddingStrategy::BatchLongest,
+                ..Default::default()
+            };
+            self.tokenizer.with_padding(Some(pp));
+        }
+
+        let tokens = self
             .tokenizer
-            .with_padding(None)
-            .with_truncation(None)
+            .encode_batch(sentences.to_vec(), true)
             .map_err(|m| JsError::new(&m.to_string()))?;
 
-        let tokens = tokenizer
-            .encode(prompt, true)
-            .map_err(|m| JsError::new(&m.to_string()))?
-            .get_ids()
-            .to_vec();
+        let token_ids: Vec<Tensor> = tokens
+            .iter()
+            .map(|tokens| {
+                let tokens = tokens.get_ids().to_vec();
+                Tensor::new(tokens.as_slice(), device)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
-        let token_ids = Tensor::new(&tokens[..], device)?.unsqueeze(0)?;
+        let token_ids = Tensor::stack(&token_ids, 0)?;
         let token_type_ids = token_ids.zeros_like()?;
-        console_log!("Loaded and encoded");
 
+        console_log!("running inference on batch {:?}", token_ids.shape());
         let embeddings = self.model.forward(&token_ids, &token_type_ids)?;
-
+        console_log!("generated embeddings {:?}", embeddings.shape());
+        // Apply some avg-pooling by taking the mean embedding value for all tokens (including padding)
+        let (_n_sentence, n_tokens, _hidden_size) = embeddings.dims3()?;
+        let embeddings = (embeddings.sum(1)? / (n_tokens as f64))?;
+        let embeddings = if normalize_embeddings {
+            embeddings.broadcast_div(&embeddings.sqr()?.sum_keepdim(1)?.sqrt()?)?
+        } else {
+            embeddings
+        };
         let embeddings_data = embeddings.to_vec2()?;
         Ok(serde_wasm_bindgen::to_value(&Embeddings {
             data: embeddings_data,
