@@ -32,4 +32,11 @@ export const forward = (() => {
   };
 })();
 
+export function cosineSimilarity(vec1: any[], vec2: any[]) {
+  const dot = vec1.reduce((acc, val, i) => acc + val * vec2[i], 0);
+  const a = Math.sqrt(vec1.reduce((acc, val) => acc + val * val, 0));
+  const b = Math.sqrt(vec2.reduce((acc, val) => acc + val * val, 0));
+  return dot / (a * b);
+}
+
 
