@@ -1,4 +1,4 @@
-use candle::{DType, Device, Module, Tensor};
+use candle_core::{DType, Device, Module, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config};
 use tokenizers::{PaddingParams, Tokenizer};
